@@ -2,12 +2,14 @@ import datetime
 import json
 
 import requests
-from flask import render_template, redirect, request
+from flask import render_template, redirect, request,url_for
+from flask import flash
 
 from app import app
 
 # The node with which our application interacts, there can be multiple
 # such nodes as well.
+app.secret_key = 'XA\xef\xd3g\\\xfd\xa3\xd3\xad\xd0\x94I.\x0b{odv[\xda{\x04Z'
 CONNECTED_NODE_ADDRESS = "http://127.0.0.1:8000"
 
 posts = []
@@ -28,7 +30,9 @@ def fetch_posts():
         for block in chain["chain"]:
             for tx in block["transactions"]:
                 tx["index"] = block["index"]
-                tx["hash"] = block["previous_hash"]
+                tx["previous_hash"] = block["previous_hash"]
+                tx["current_hash"] = block["hash"]  # Add this line
+                tx["transactions"] = json.dumps(tx)
                 content.append(tx)
 
         global posts
@@ -36,43 +40,83 @@ def fetch_posts():
                        reverse=True)
     except requests.exceptions.RequestException as e:
         print(f"Error fetching posts: {e}")
-        posts = []
+        # posts = []
 
 
 @app.route('/')
 def index():
     fetch_posts()
     return render_template('index.html',
-                           title='YourNet: Decentralized '
-                                 'content sharing',
+                           title='Invoice Registration Portal',
                            posts=posts,
                            node_address=CONNECTED_NODE_ADDRESS,
-                           readable_time=timestamp_to_string)
-
+                           readable_time=timestamp_to_string,datetime=datetime)
 
 @app.route('/submit', methods=['POST'])
 def submit_textarea():
     """
     Endpoint to create a new transaction via our application.
     """
-    post_content = request.form["content"]
-    author = request.form["author"]
+    document_type = request.form["document_type"]
+    document_number = request.form["document_number"]
+    gst_no = request.form["gst_no"]
+    document_date = request.form["document_date"]
+    seller = request.form["seller"]
+    buyer = request.form["buyer"]
+    financial_year = request.form.get('financial_year')
 
     post_object = {
-        'author': author,
-        'content': post_content,
+        'document_type': document_type,
+        'document_number': document_number,
+        'gst_no': gst_no,
+        'document_date': document_date,
+        'seller': seller,
+        'buyer': buyer,
+        'financial_year': financial_year
     }
 
-    # Submit a transaction
-    new_tx_address = "{}/new_transaction".format(CONNECTED_NODE_ADDRESS)
+    # Define new_tx_address here, before using it in the try block:
+    new_tx_address = "{}/new_transaction".format(CONNECTED_NODE_ADDRESS) 
+
     try:
-        response=requests.post(new_tx_address,json=post_object,headers={'Content-type': 'application/json'})
-        response.raise_for_status()
+        response = requests.post(new_tx_address, json=post_object, headers={'Content-type': 'application/json'})
+        response.raise_for_status()  # Raise an exception for bad status codes 
+        if response.status_code == 201:
+            irn_hash = response.json().get('irn_hash')
+            flash(f"Transaction submitted successfully. Generated IRN: {irn_hash}", "success")
+        else:
+            flash(f"Error: {response.text}", "error") 
     except requests.exceptions.RequestException as e:
-        print(f"Error submitting transaction: {e}")
+        flash(f"Error submitting transaction: {str(e)}", "error")
 
     return redirect('/')
 
+@app.route('/deactivate', methods=['GET'])
+def deactivate_page():
+    return render_template('deactivate.html')
+
+@app.route('/process_deactivation', methods=['POST'])
+def process_deactivation():
+    irn_hash = request.form.get('irn_hash')
+    reason = request.form.get('reason')
+    
+    if not irn_hash or not reason:
+        flash("Invalid input. Please provide both IRN hash and reason.", "error")
+        return redirect(url_for('deactivate_page'))
+
+    deactivate_address = f"{CONNECTED_NODE_ADDRESS}/deactivate_invoice"
+    try:
+        response = requests.post(deactivate_address, json={'irn_hash': irn_hash, 'reason': reason})
+        response.raise_for_status()
+        if response.status_code == 200:
+            flash("Invoice deactivated successfully", "success")
+        else:
+            flash(f"Error: {response.json().get('message', 'Unknown error')}", "error")
+    except requests.exceptions.RequestException as e:
+        flash(f"Error deactivating invoice: {str(e)}", "error")
+    
+    return redirect(url_for('index'))
+    
 
 def timestamp_to_string(epoch_time):
     return datetime.datetime.fromtimestamp(epoch_time).strftime('%H:%M')

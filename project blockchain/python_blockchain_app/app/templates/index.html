@@ -1,106 +1,166 @@
 <!-- extend base layout -->
 {% extends "base.html" %}
-
 {% block content %}
 	<br>
-
 	<center>
-	<form action="/submit" id="textform" method="post">
-	    <textarea name="content" rows="4" cols="50" placeholder="Just write whatever you want to..."></textarea>
-	    <br>
-	    <input type="text" name="author" placeholder="Your name">
-	    <input type="submit" value="Post">
-	</form>
+		<form action="/submit" id="dataform" method="post">
+			<label for="financial_year"></label>
+			<select name="financial_year" id="financial_year" required><div class="select-placeholder">
+				<option value="">Select Financial Year</option> <div class="select-placeholder">
+				{% for year in range(2021, datetime.datetime.now().year + 2) %}
+				<option value="{{ year }}-{{ year + 1 }}">{{ year }}-{{ year + 1 }}</option>
+				{% endfor %}
+			</select>
+			<label for="document_type"></label>
+			<select name="document_type" id="document_type" required><div class="select-placeholder">
+				<option value="">Select Document Type</option> <div class="select-placeholder"></div> 
+				<option value="INV">Invoice</option>
+				<option value="CRN">Credit Note</option>
+				<option value="DBN">Debit Note</option>
+			</select>
+			<input type="number" name="document_number" placeholder="Document Number">
+			<input type="number" name="gst_no" placeholder="GST Number">
+			<input type="date" name="document_date" placeholder="Document Date">
+			<input type="text" name="seller" placeholder="Seller">
+			<input type="text" name="buyer" placeholder="Buyer">
+			<input type="submit" value="Post">
+		</form>
+		{% with messages = get_flashed_messages(with_categories=true) %}
+		{% if messages %}
+		{% for category, message in messages %}
+		{% if category == 'success' and 'Generated IRN:' in message %}
+		<div class="irn-display">
+			<h3>Transaction Successful!</h3>
+			<p>{{ message }}</p>
+		</div>
+		{% endif %}
+		{% endfor %}
+		{% endif %}
+		{% endwith %}
+		<a href="{{ url_for('deactivate_page') }}" class="deactivate-btn">Deactivate Invoice</a>
 	</center>
-
 	<br>
-
 	<a href="{{node_address}}/mine" target="_blank"><button>Request to mine</button></a>
 	<a href="/"><button>Resync</button></a>
-
 	<div style="margin: 20px;">
-
-    {% for post in posts %}
-    <div class="post_box">
+	{% for post in posts %}
+	<div class="post_box">
 	   <div class="post_box-header">
-	      <div class="post_box-options"><button class="option-btn">Reply</button></div>
-	      <div style="background: rgb(0, 97, 146) none repeat scroll 0% 0%; box-shadow: rgb(0, 97, 146) 0px 0px 0px 2px;" class="post_box-avatar">{{post.author[0]}}</div>
-	      <div class="name-header">{{post.author}}</div>
-	      <div class="post_box-subtitle"> Posted at <i>{{readable_time(post.timestamp)}}</i></div>
+		 
+		  <div style="background: rgb(0, 97, 146) none repeat scroll 0% 0%; box-shadow: rgb(0, 97, 146) 0px 0px 0px 2px;" class="post_box-avatar">{{post.seller[0]}}</div>
+		  <div class="name-header">{{post.seller}}</div>
+		  <div class="post_box-subtitle"> Posted at <i>{{readable_time(post.timestamp)}}</i></div>
 	   </div>
 	   <div>
-	      <div class="post_box-body">
-	         <p>{{post.content}}</p>
+		  <div class="post_box-body">
+			 <p>Document Type: {{post.document_type}}</p>
+			 <p>Document Number: {{post.document_number}}</p>
+			 <p>GST Number: {{post.gst_no}}</p>
+			 <p>Document Date: {{post.document_date}}</p>
+			 <p>Seller: {{post.seller}}</p>
+			 <p>Buyer: {{post.buyer}}</p>
 			 <p>Index: {{post.index}}</p>
-         	 <p>Transactions: {{post.transactions}}</p>
-         	 <p>Timestamp: {{post.timestamp}}</p>
-         	 <p>Previous Hash: {{post.previous_hash}}</p>
-	      </div>
+			 <p>Financial Year: {{ post.financial_year }}</p>
+			 <p>Transactions: {{post.transactions}}</p>
+			 <p>Timestamp: {{post.timestamp}}</p>
+			 <p>Previous Hash: {{post.previous_hash}}</p>
+			 <p>Current Hash: {{post.current_hash}}</p>
+			 <p>Status: {{post.status}}</p>
+             {% if post.status == 'Inactive' %}
+             <p>Deactivation Reason: {{post.deactivation_reason}}</p>
+             {% endif %}
+		  </div>
 	   </div>
 	</div>
 	{% endfor %}
-
+	<!-- Your CSS styles here -->
+	</div>
 	<style>
 		.post_box {
-		    background: #fff;
-		    padding: 12px 0px 0px 12px;
-		    margin-top: 0px;
-		    margin-bottom: 8px;
-		    border-top: 1px solid #f0f0f0;
+			background: #fff;
+			padding: 12px 0px 0px 12px;
+			margin-top: 0px;
+			margin-bottom: 8px;
+			border-top: 1px solid #f0f0f0;
 		}
-
 		.post_box-header {
-		    padding-bottom: 12px;
+			padding-bottom: 12px;
 		}
-
 		.post_box-avatar {
-		    width: 38px;
-		    height: 38px;
-		    border-radius: 50%;
-		    display: flex;
-		    justify-content: center;
-		    align-items: center;
-		    color: white;
-		    font-size: 22px;
-		    float: left;
-		    margin-right: 16px;
-		    border: 1px solid #fff;
-		    box-shadow: 0px 0px 0px 2px #f00;
+			width: 38px;
+			height: 38px;
+			border-radius: 50%;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			color: white;
+			font-size: 22px;
+			float: left;
+			margin-right: 16px;
+			border: 1px solid #fff;
+			box-shadow: 0px 0px 0px 2px #f00;
 		}
-
 		.post_box-avatar::after {
-		    content:"";
-		    display:block;
+			content:"";
+			display:block;
 		}
-
 		.post_box-name {
-		    font-weight: bold;
+			font-weight: bold;
 		}
-
 		.post_box-subtitle {
-		    color: #777;
+			color: #777;
 		}
-
 		.post_box-body {
-		    margin-top: 16px;
-		    margin-bottom: 8px;
+			margin-top: 16px;
+			margin-bottom: 8px;
 		}
-
 		.post_box-options {
-		    float: right;
+			float: right;
 		}
 		.option-btn {
-		    background: #f8f8f8;
-		    border: none;
-		    color: #2c3e50;
-		    padding: 7px;
-		    cursor: pointer;
-		    font-size: 14px;
-		    margin-left: 2px;
-		    margin-right: 2px;
-		    outline: none;
-		    height: 42px;
+			background: #f8f8f8;
+			border: none;
+			color: #2c3e50;
+			padding: 7px;
+			cursor: pointer;
+			font-size: 14px;
+			margin-left: 2px;
+			margin-right: 2px;
+			outline: none;
+			height: 42px;
 		}
+		.irn-display {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 5px;
+        padding: 15px;
+        margin: 20px auto;
+        max-width: 600px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .irn-display h3 {
+        color: #155724;
+        margin-bottom: 10px;
+    }
+
+    .irn-display p {
+        color: #1e7e34;
+        font-family: monospace;
+        font-size: 14px;
+        word-break: break-all;
+    }
+	.deactivate-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #f44336;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            margin-top: 20px;
+        }
+
 	</style>
-    </div>
+	</div>
 {% endblock %}
