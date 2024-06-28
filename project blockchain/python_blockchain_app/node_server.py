@@ -5,11 +5,11 @@ import atexit
 from hashlib import sha256
 import json
 import time
+import threading
+import hashlib
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import requests
-
-
 
 
 class Block:
@@ -19,6 +19,7 @@ class Block:
         self.timestamp = timestamp
         self.previous_hash = previous_hash
         self.nonce = nonce
+        self.hash = self.compute_hash()
 
     def compute_hash(self):
         """
@@ -26,8 +27,64 @@ class Block:
         """
         block_string = json.dumps(self.__dict__, sort_keys=True)
         return sha256(block_string.encode()).hexdigest()
+class UniqueChecker:
+    # _instance = None
 
+    # def __new__(cls):
+    #     if cls._instance is None:
+    #         print('Creating the object')
+    #         cls._instance = super(UniqueChecker, cls).__new__(cls)
+    #         cls._instance.data_set = set()
+    #         cls._instance.gst_set = set()  # Add a new set to store GST_No
+    #     return cls._instance
 
+    # def check_unique(self, data):
+    #     data_string = json.dumps(data, sort_keys=True)
+    #     gst_no = data.get('gst_no')  # Get the GST_No from the data
+        
+    #     print(f"Checking uniqueness for data: {data_string} and GST_No: {gst_no}")
+
+    #     if data_string in self.data_set:
+    #         print("Data already exists.")
+    #         return False, "Error: Data already exists."
+    #     elif gst_no and gst_no in self.gst_set:  # Check if GST_No already exists
+    #         print("GST_No already exists.")
+    #         return False, "Error: GST_No already exists."
+    #     else:
+    #         self.data_set.add(data_string)
+    #         if gst_no:
+    #             self.gst_set.add(gst_no)  # Add the GST_No to the set
+    #         print("Data added successfully.")    
+    #         return True, "Data added successfully."
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            print('Creating the object')
+            cls._instance = super(UniqueChecker, cls).__new__(cls)
+            cls._instance.irn_hashes = set()
+        return cls._instance
+
+    def generate_irn_hash(self, data):
+        # irn = f"{data['gst_no']}{data['financial_year']}{data['document_type']}{data['document_number']}"
+        # return hashlib.sha256(irn.encode()).hexdigest()
+        if data.get('type') == 'deactivation':# Use original_irn_hash if it's a deactivation transaction
+            irn = data['original_irn_hash'] 
+        else:
+            irn = f"{data['gst_no']}{data['financial_year']}{data['document_type']}{data['document_number']}"
+        return hashlib.sha256(irn.encode()).hexdigest()
+    def check_unique(self, data):
+        irn_hash = self.generate_irn_hash(data)
+        
+        print(f"Checking uniqueness for IRN hash: {irn_hash}")
+
+        if irn_hash in self.irn_hashes:
+            print("IRN hash already exists.")
+            return False, "Error: Transaction with this IRN already exists."
+        else:
+            self.irn_hashes.add(irn_hash)
+            print("Data added successfully.")    
+            return True, "Data added successfully."
 class Blockchain:
     # difficulty of our PoW algorithm
     difficulty = 2
@@ -35,6 +92,7 @@ class Blockchain:
     def __init__(self, chain=None):
         self.unconfirmed_transactions = []
         self.chain = chain
+        self.unique_checker = UniqueChecker()  # Initialize the UniqueChecker
         if self.chain is None:
             self.chain = []
             self.create_genesis_block()
@@ -71,6 +129,7 @@ class Blockchain:
 
         block.hash = proof
         self.chain.append(block)
+        print(block.__dict__)
 
     @staticmethod
     def proof_of_work(block):
@@ -88,7 +147,74 @@ class Blockchain:
         # return computed_hash
         return block.compute_hash()
     def add_new_transaction(self, transaction):
+        # consensus()
+        # success, message = self.unique_checker.check_unique(transaction)  # Check the uniqueness of the transaction
+        # if not success:
+        #     return message, 400  # Return an error message if the transaction is not unique
+        # self.unconfirmed_transactions.append(transaction)
+        # return "Success", 201
+        consensus()  # Ensure we have the most up-to-date chain
+        self.update_unique_checker()  # Update the unique checker with all transactions in the chain
+        transaction['status'] = 'Active'
+        success, message = self.unique_checker.check_unique(transaction)
+        if not success:
+            return message, 400
         self.unconfirmed_transactions.append(transaction)
+        irn_hash = self.unique_checker.generate_irn_hash(transaction)
+        return "Success", 201,irn_hash
+    
+    def deactivate_invoice(self, irn_hash, reason):
+        # current_time = time.time()
+        # for block in self.chain:
+        #     for transaction in block.transactions:
+        #         if self.unique_checker.generate_irn_hash(transaction) == irn_hash:
+        #             if transaction.get('status') == 'Inactive':
+        #                 return False, "Invoice is already inactive"
+                    
+        #             if current_time - transaction['timestamp'] <= 24 * 3600:  # 24 hours in seconds
+        #                 deactivation_transaction = {
+        #                 'type': 'deactivation',
+        #                 'original_irn_hash': irn_hash,
+        #                 'reason': reason,
+        #                 'timestamp': current_time,
+        #                 'status': 'Inactive',
+        #                 'seller': "N/A", # Add dummy seller
+        #                 'buyer': "N/A"  # Add dummy buyer
+        #             }
+        #             self.unconfirmed_transactions.append(deactivation_transaction)
+        #             return True, "Deactivation transaction created successfully"
+        #         else:
+        #             return False, "Deactivation period has expired (more than 24 hours)"
+        # return False, "Invoice not found"
+        # def deactivate_invoice(self, irn_hash, reason):
+        current_time = time.time()
+        for block in self.chain:
+            for transaction in block.transactions:
+                if self.unique_checker.generate_irn_hash(transaction) == irn_hash:
+                    if transaction.get('status') == 'Inactive':
+                        return False, "Invoice is already inactive"
+
+                    if current_time - transaction['timestamp'] <= 24 * 3600: 
+                        deactivation_transaction = {
+                            'type': 'deactivation',
+                            'original_irn_hash': irn_hash,
+                            'reason': reason,
+                            'timestamp': current_time,
+                            'status': 'Inactive',
+                            'seller': "N/A", 
+                            'buyer': "N/A"  
+                        }
+                        self.unconfirmed_transactions.append(deactivation_transaction)
+                        return True, "Deactivation transaction created successfully"
+                    else:
+                        return False, "Deactivation period has expired (more than 24 hours)"
+
+        return False, "Invoice not found"
+    def update_unique_checker(self):
+        self.unique_checker = UniqueChecker()  # Reset the unique checker
+        for block in self.chain:
+            for transaction in block.transactions:
+                self.unique_checker.check_unique(transaction)  # Add all existing transactions to the checker
 
     @classmethod
     def is_valid_proof(cls, block, block_hash):
@@ -114,10 +240,22 @@ class Blockchain:
                     previous_hash != block.previous_hash:
                 result = False
                 break
+            for transaction in block.transactions:
+                if not cls.is_valid_transaction(transaction):
+                    result = False
+                    break
 
             block.hash, previous_hash = block_hash, block_hash
+            
+            if not result:
+                break
 
         return result
+    
+    @staticmethod
+    def is_valid_transaction(transaction):
+        required_fields = ["document_type", "document_number", "gst_no", "document_date", "financial_year", "timestamp"]
+        return all(field in transaction for field in required_fields)
 
     def mine(self):
         """
@@ -136,12 +274,39 @@ class Blockchain:
                           previous_hash=last_block.hash)
 
         proof = self.proof_of_work(new_block)
+        new_block.previous_hash = self.last_block.hash
         self.add_block(new_block, proof)
+        
+        for transaction in self.unconfirmed_transactions:
+            if transaction.get('type') == 'deactivation':
+                self.update_invoice_status(transaction['original_irn_hash'], 'Inactive')
 
         self.unconfirmed_transactions = []
 
         return True
 
+    def update_invoice_status(self, irn_hash, status):
+        for block in self.chain:
+            for transaction in block.transactions:
+                if self.unique_checker.generate_irn_hash(transaction) == irn_hash:
+                    transaction['status'] = status
+                    return
+                
+    def get_invoice_status(self, irn_hash):
+        # for block in reversed(self.chain):
+        #     for transaction in reversed(block.transactions):
+        #         if transaction.get('type') == 'deactivation' and transaction.get('original_irn_hash') == irn_hash:
+        #             return 'Inactive'
+        #         elif self.unique_checker.generate_irn_hash(transaction) == irn_hash:
+        #             return transaction.get('status', 'Active')
+        # return 'Not Found'
+        for block in reversed(self.chain):
+            for transaction in reversed(block.transactions):
+                if transaction.get('type') == 'deactivation' and transaction['original_irn_hash'] == irn_hash:
+                    return 'Inactive', transaction['reason'] # Return a tuple
+                elif self.unique_checker.generate_irn_hash(transaction) == irn_hash:
+                    return transaction.get('status', 'Active'), None  # Return a tuple
+        return 'Not Found', None  # Return a tuple
 
 app = Flask(__name__)
 
@@ -157,7 +322,7 @@ peers = set()
 @app.route('/new_transaction', methods=['POST'])
 def new_transaction():
     tx_data = request.get_json()
-    required_fields = ["author", "content"]
+    required_fields = ["document_type", "document_number", "gst_no", "document_date","financial_year"]
 
     for field in required_fields:
         if not tx_data.get(field):
@@ -165,9 +330,13 @@ def new_transaction():
 
     tx_data["timestamp"] = time.time()
 
-    blockchain.add_new_transaction(tx_data)
+    message, status_code, irn_hash=blockchain.add_new_transaction(tx_data)
 
-    return "Success", 201
+    response_data = {
+        'message': message,
+        'irn_hash': irn_hash # Include irn_hash in response
+    }
+    return json.dumps(response_data), status_code
 
 
 chain_file_name = os.environ.get('DATA_FILE')
@@ -175,6 +344,7 @@ chain_file_name = os.environ.get('DATA_FILE')
 
 def create_chain_from_dump(chain_dump):
     generated_blockchain = Blockchain()
+    # generated_blockchain.chain=[]
     for idx, block_data in enumerate(chain_dump):
         if idx == 0:
             continue  # skip genesis block
@@ -185,6 +355,9 @@ def create_chain_from_dump(chain_dump):
                       block_data["nonce"])
         proof = block_data['hash']
         generated_blockchain.add_block(block, proof)
+
+        for tx in block_data["transactions"]:
+            generated_blockchain.unique_checker.check_unique(tx)
     return generated_blockchain
 
 
@@ -197,20 +370,39 @@ def get_chain():
     chain_data = []
     for block in blockchain.chain:
         # chain_data.append(block.__dict__)
-        block_dict = block.__dict__
-        block_dict['index'] = block.index
-        block_dict['transactions'] = block.transactions
-        block_dict['timestamp'] = block.timestamp
-        block_dict['previous_hash'] = block.previous_hash
+        # block_dict = block.__dict__
+        # block_dict['index'] = block.index
+        # block_dict['transactions'] = block.transactions
+        # block_dict['timestamp'] = block.timestamp
+        # block_dict['previous_hash'] = block.previous_hash
+        # block_dict['hash'] = block.hash 
+        # chain_data.append(block_dict)
+        block_dict = {
+            'index': block.index,
+            'transactions': block.transactions,
+            'timestamp': block.timestamp,
+            'previous_hash': block.previous_hash,
+            'hash': block.hash,
+            'nonce': block.nonce
+        }
+        for transaction in block_dict['transactions']:
+            if transaction.get('type') != 'deactivation':
+                irn_hash = blockchain.unique_checker.generate_irn_hash(transaction)
+                # transaction['status']= blockchain.get_invoice_status(irn_hash)
+                status, deactivation_reason = blockchain.get_invoice_status(irn_hash) # Unpack both values
+                transaction['status'] = status
+                transaction['deactivation_reason'] = deactivation_reason  # Add deactivation reason
         chain_data.append(block_dict)
     return json.dumps({"length": len(chain_data),
                        "chain": chain_data,
                        "peers": list(peers)})
 
 
+
+
 def save_chain():
     if chain_file_name is not None:
-        with open(chain_file_name, 'w') as chain_file:
+        with open(chain_file_name, 'a') as chain_file:
             chain_file.write(get_chain())
 
 
@@ -274,7 +466,22 @@ def register_new_peers():
     # so that he can sync
     return get_chain()
 
+@app.route('/deactivate_invoice', methods=['POST'])
+def deactivate_invoice():
+    data = request.get_json()
+    irn_hash = data.get('irn_hash')
+    reason = data.get('reason')
+    
+    if not irn_hash or not reason:
+        return jsonify({"message": "Invalid data"}), 400
 
+    success, message = blockchain.deactivate_invoice(irn_hash, reason)
+    if success:
+        # Trigger mining to include the deactivation transaction
+        mine_unconfirmed_transactions()
+        return jsonify({"message": message}), 200
+    else:
+        return jsonify({"message": message}), 400
 
 @app.route('/register_with', methods=['POST'])
 def register_with_existing_node():
@@ -335,30 +542,76 @@ def get_pending_tx():
     return json.dumps(blockchain.unconfirmed_transactions)
 
 
+
+
 def consensus():
     """
     Our naive consnsus algorithm. If a longer valid chain is
     found, our chain is replaced with it.
     """
-    global blockchain
+    # global blockchain
 
+    # longest_chain = None
+    # current_len = len(blockchain.chain)
+
+    # for node in peers:
+    #     response = requests.get('{}chain'.format(node))
+    #     length = response.json()['length']
+    #     chain = response.json()['chain']
+    #     if length > current_len and blockchain.check_chain_validity(chain):
+    #         current_len = length
+    #         longest_chain = chain
+
+    # if longest_chain:
+    #     blockchain = longest_chain
+    #     return True
+
+    # return False
+    
+    # global blockchain
+    # longest_chain = None
+    # current_len = len(blockchain.chain)
+    # for node in peers:
+    #     response = requests.get(f'{node}/chain')
+    #     if response.status_code == 200:
+    #         length = response.json()['length']
+    #         chain = response.json()['chain']
+    #         if length > current_len and Blockchain.check_chain_validity(chain):
+    #             current_len = length
+    #             longest_chain = chain
+    # if longest_chain:
+    #     blockchain = create_chain_from_dump(longest_chain)
+    #     return True
+    # return False
+    global blockchain
     longest_chain = None
     current_len = len(blockchain.chain)
 
     for node in peers:
-        response = requests.get('{}chain'.format(node))
-        length = response.json()['length']
-        chain = response.json()['chain']
-        if length > current_len and blockchain.check_chain_validity(chain):
-            current_len = length
-            longest_chain = chain
+        response = requests.get(f'{node}/chain')
+        if response.status_code == 200:
+            length = response.json()['length']
+            chain_data = response.json()['chain']
+
+            # Convert chain_data to a list of Block objects
+            chain = []
+            for block_data in chain_data:
+                block = Block(block_data["index"],
+                              block_data["transactions"],
+                              block_data["timestamp"],
+                              block_data["previous_hash"],
+                              block_data["nonce"])
+                block.hash = block_data['hash']  # Set the hash
+                chain.append(block) 
+            
+            if length > current_len and Blockchain.check_chain_validity(chain):
+                current_len = length
+                longest_chain = chain
 
     if longest_chain:
-        blockchain = longest_chain
+        blockchain.chain = longest_chain # Directly update blockchain.chain
         return True
-
     return False
-
 
 def announce_new_block(block):
     """
@@ -387,6 +640,14 @@ def announce_new_block(block):
 
 # Uncomment this line if you want to specify the port number in the code
 
+def periodic_sync():
+    while True:
+        consensus()
+        time.sleep(10)  # Sync every 60 seconds
+
+sync_thread = threading.Thread(target=periodic_sync)
+sync_thread.daemon = True
+sync_thread.start()
 
 if __name__ == "__main__":
     app.run(host ='0.0.0.0', debug=True, port=8000)
