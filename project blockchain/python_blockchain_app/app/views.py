@@ -40,7 +40,7 @@ def fetch_posts():
                        reverse=True)
     except requests.exceptions.RequestException as e:
         print(f"Error fetching posts: {e}")
-        # posts = []
+        posts = []
 
 
 @app.route('/')
@@ -51,6 +51,7 @@ def index():
                            posts=posts,
                            node_address=CONNECTED_NODE_ADDRESS,
                            readable_time=timestamp_to_string,datetime=datetime)
+
 
 @app.route('/submit', methods=['POST'])
 def submit_textarea():
@@ -91,29 +92,29 @@ def submit_textarea():
 
     return redirect('/')
 
-@app.route('/deactivate', methods=['GET'])
-def deactivate_page():
-    return render_template('deactivate.html')
+@app.route('/cancel', methods=['GET'])
+def cancel_page():
+    return render_template('cancel.html')
 
-@app.route('/process_deactivation', methods=['POST'])
-def process_deactivation():
+@app.route('/process_cancellation', methods=['POST'])
+def process_cancellation():
     irn_hash = request.form.get('irn_hash')
     reason = request.form.get('reason')
     
     if not irn_hash or not reason:
         flash("Invalid input. Please provide both IRN hash and reason.", "error")
-        return redirect(url_for('deactivate_page'))
+        return redirect(url_for('cancel_page'))
 
-    deactivate_address = f"{CONNECTED_NODE_ADDRESS}/deactivate_invoice"
+    cancel_address = f"{CONNECTED_NODE_ADDRESS}/cancel_invoice"
     try:
-        response = requests.post(deactivate_address, json={'irn_hash': irn_hash, 'reason': reason})
+        response = requests.post(cancel_address, json={'irn_hash': irn_hash, 'reason': reason})
         response.raise_for_status()
         if response.status_code == 200:
-            flash("Invoice deactivated successfully", "success")
+            flash("Invoice cancelled successfully", "success")
         else:
             flash(f"Error: {response.json().get('message', 'Unknown error')}", "error")
     except requests.exceptions.RequestException as e:
-        flash(f"Error deactivating invoice: {str(e)}", "error")
+        flash(f"Error cancelling invoice: {str(e)}", "error")
     
     return redirect(url_for('index'))
     

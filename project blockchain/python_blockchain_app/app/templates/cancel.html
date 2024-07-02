@@ -1,42 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="deactivate-form">
-    <h2>Deactivate Invoice</h2>
-    <form action="{{ url_for('process_deactivation') }}" method="post">
+<div class="cancel-form">
+    <h2>Cancel Invoice</h2>
+    <form action="{{ url_for('process_cancellation') }}" method="post">
         <label for="irn_hash">IRN Hash:</label>
         <input type="text" name="irn_hash" id="irn_hash" required>
-        <label for="reason">Reason for Deactivation:</label>
+        <label for="reason">Reason for Cancellation:</label>
         <textarea name="reason" id="reason" required></textarea>
-        <input type="submit" value="Deactivate Invoice">
+        <input type="submit" value="Cancel Invoice">
     </form>
 </div>
 
 <style>
-    .deactivate-form {
+    .cancel-form {
         max-width: 500px;
         margin: 0 auto;
         padding: 20px;
         background-color: #f9f9f9;
         border-radius: 5px;
     }
-    .deactivate-form h2 {
+    .cancel-form h2 {
         text-align: center;
         color: #333;
     }
-    .deactivate-form label {
+    .cancel-form label {
         display: block;
         margin-top: 10px;
     }
-    .deactivate-form input[type="text"],
-    .deactivate-form textarea {
+    .cancel-form input[type="text"],
+    .cancel-form textarea {
         width: 100%;
         margin-top: 5px;
         padding: 5px;
     }
-    .deactivate-form textarea {
+    .cancel-form textarea {
         height: 100px;
     }
-    .deactivate-form input[type="submit"] {
+    .cancel-form input[type="submit"] {
         display: block;
         width: 100%;
         padding: 10px;
