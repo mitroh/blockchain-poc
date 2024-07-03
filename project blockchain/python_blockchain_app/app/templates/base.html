@@ -3,23 +3,22 @@
     <title>{{ title }}</title>
   </head>
   <body>
-  {% with messages = get_flashed_messages(with_categories=true) %}
-   {% if messages %}
-    <ul class="flashes">
-    {% for category, message in messages %}
-      <li class="{{ category }}">{{ message }}</li>
-    {% endfor %}
-    </ul>
-   {% endif %}
-  {% endwith %}
-    <div><a href="/index">Home</a></div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flashes">
+        {% for category, message in messages %}
+          <li class="{{ category }}">{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    <div>
+      <a href="/">Home</a> | 
+      <a href="{{ url_for('transactions') }}">Transactions</a> |
+      <a href="{{ url_for('cancel_page') }}">Cancel Invoice</a>
+    </div>
     <center><h1>{{ title }}</h1></center>
     <hr>
-    {% with messages = get_flashed_messages() %}
-    {% if messages %}
-    
-    {% endif %}
-    {% endwith %}
     {% block content %}{% endblock %}
     <style>
       .flashes {
@@ -42,6 +41,6 @@
           border: 1px solid #ebccd1;
           color: #a94442;
       }
-  </style>
+    </style>
   </body>
 </html>
