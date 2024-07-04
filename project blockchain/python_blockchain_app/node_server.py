@@ -52,7 +52,7 @@ class UniqueChecker:
 
         if irn_hash in self.irn_hashes:
             print("IRN hash already exists.")
-            return False, "Error: Transaction with this IRN already exists."
+            return False, "Error: 2150 Duplicate IRN"
         else:
             self.irn_hashes.add(irn_hash)
             print("Data added successfully.")    
@@ -101,6 +101,7 @@ class Blockchain:
 
         block.hash = proof
         self.chain.append(block)
+        consensus()  # Ensure we have the most up-to-date chain
         print(block.__dict__)
 
     @staticmethod
@@ -139,9 +140,10 @@ class Blockchain:
                             'buyer': "N/A"  
                         }
                         self.unconfirmed_transactions.append(cancellation_transaction)
+                        print("appended",self.unconfirmed_transactions)
                         return True, "Cancellation transaction created successfully"
                     else:
-                        return False, "Cancellation period has expired (more than 24 hours)"
+                        return False, "Error : 2270 Cancellation period has expired (more than 24 hours)"
 
         return False, "Invoice not found"
     def update_unique_checker(self):
@@ -382,10 +384,12 @@ def cancel_invoice():
         return jsonify({"message": "Invalid data"}), 400
 
     success, message = blockchain.cancel_invoice(irn_hash, reason)
-  
+    
     if success:
         # Trigger mining to include the cancellation transaction
         mine_unconfirmed_transactions()
+        consensus()
+        print("invoice cancelled successfulyyyyyy")
         return jsonify({"message": message}), 200
     else:
         return jsonify({"message": message}), 400
@@ -433,6 +437,11 @@ def verify_and_add_block():
         return "The block was discarded by the node: " + str(e), 400
 
     return "Block added to the chain", 201
+
+@app.route('/consensus', methods=['GET'])
+def trigger_consensus():
+    consensus()
+    return "Consensus triggered", 200
 
 @app.route('/pending_tx')
 def get_pending_tx():
@@ -497,14 +506,14 @@ def announce_new_block(block):
         except Exception as e:
             print(f"Error: {e}. Could not send block to peer: {peer}")
 
-def periodic_sync():
-    while True:
-        consensus()
-        time.sleep(10)  # Sync every 10 seconds
+# def periodic_sync():
+#     while True:
+#         consensus()
+#         time.sleep(2)  # Sync every 2 seconds
 
-sync_thread = threading.Thread(target=periodic_sync)
-sync_thread.daemon = True
-sync_thread.start()
+# sync_thread = threading.Thread(target=periodic_sync)
+# sync_thread.daemon = True
+# sync_thread.start()
 
 if __name__ == "__main__":
     last_block_index = blockchain.last_block.index  # Initialize after blockchain is loaded

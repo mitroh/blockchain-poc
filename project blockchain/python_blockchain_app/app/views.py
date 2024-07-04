@@ -1,7 +1,7 @@
 import datetime
 import json
 import requests
-from flask import render_template, redirect, request, url_for, flash, jsonify, session
+from flask import render_template, redirect, request, url_for, flash, jsonify,session
 from app import app
 
 app.secret_key = 'XA\xef\xd3g\\\xfd\xa3\xd3\xad\xd0\x94I.\x0b{odv[\xda{\x04Z'
@@ -30,7 +30,13 @@ def fetch_posts():
     except requests.exceptions.RequestException as e:
         print(f"Error fetching posts: {e}")
         posts = []
-
+def trigger_consensus():
+    consensus_address = f"{CONNECTED_NODE_ADDRESS}/consensus"
+    try:
+        response = requests.get(consensus_address)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        print(f"Error triggering consensus: {e}")
 @app.route('/')
 def index():
     fetch_posts()
@@ -61,6 +67,7 @@ def submit_textarea():
         if response.status_code == 201:
             irn_hash = response.json().get('irn_hash')
             flash(f"Transaction submitted successfully. Generated IRN: {irn_hash}", "success")
+            trigger_consensus()
         else:
             flash(f"Error: {response.text}", "error") 
     except requests.exceptions.RequestException as e:
@@ -87,6 +94,7 @@ def process_cancellation():
         response.raise_for_status()
         if response.status_code == 200:
             flash("Invoice cancelled successfully", "success")
+            trigger_consensus()
         else:
             flash(f"Error: {response.json().get('message', 'Unknown error')}", "error")
     except requests.exceptions.RequestException as e:
@@ -106,6 +114,7 @@ def transactions():
 
 @app.route('/resync', methods=['POST'])
 def resync():
+    trigger_consensus()
     fetch_posts()
     return jsonify({'posts': posts})
 
