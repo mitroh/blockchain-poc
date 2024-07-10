@@ -1,46 +1,36 @@
-<html>
-  <head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ title }}</title>
-  </head>
-  <body>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 font-sans">
     {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <ul class="flashes">
-        {% for category, message in messages %}
-          <li class="{{ category }}">{{ message }}</li>
-        {% endfor %}
-        </ul>
-      {% endif %}
+        {% if messages %}
+            <ul class="fixed top-0 left-0 right-0 z-50">
+            {% for category, message in messages %}
+                <li class="{% if category == 'success' %}bg-green-100 border-green-400 text-green-700{% else %}bg-red-100 border-red-400 text-red-700{% endif %} px-4 py-3 rounded relative border" role="alert">
+                    <span class="block sm:inline">{{ message }}</span>
+                </li>
+            {% endfor %}
+            </ul>
+        {% endif %}
     {% endwith %}
-    <div>
-      <a href="/">Home</a> | 
-      <a href="{{ url_for('transactions') }}">Transactions</a> |
-      <a href="{{ url_for('cancel_page') }}">Cancel Invoice</a>
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <a href="/" class="text-xl font-bold">Invoice System</a>
+            <div class="space-x-4">
+                <a href="/" class="hover:text-blue-200">Home</a>
+                <a href="{{ url_for('transactions') }}" class="hover:text-blue-200">Transactions</a>
+                <a href="{{ url_for('cancel_page') }}" class="hover:text-blue-200">Cancel Invoice</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container mx-auto mt-8">
+        <h1 class="text-3xl font-bold text-center mb-8">{{ title }}</h1>
+        {% block content %}{% endblock %}
     </div>
-    <center><h1>{{ title }}</h1></center>
-    <hr>
-    {% block content %}{% endblock %}
-    <style>
-      .flashes {
-          list-style-type: none;
-          padding: 10px;
-          margin: 10px 0;
-      }
-      .flashes li {
-          padding: 5px 10px;
-          margin: 5px 0;
-          border-radius: 3px;
-      }
-      .flashes li.success {
-          background-color: #dff0d8;
-          border: 1px solid #d6e9c6;
-          color: #3c763d;
-      }
-      .flashes li.error {
-          background-color: #f2dede;
-          border: 1px solid #ebccd1;
-          color: #a94442;
-      }
-    </style>
-  </body>
+</body>
 </html>

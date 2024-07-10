@@ -1,101 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
-<div id="posts-container" style="margin: 20px;">
-  {% for post in posts %}
-  <div class="post_box">
-    <div class="post_box-header">
-      {% if post.get('seller') %}
-      <div style="background: rgb(0, 97, 146) none repeat scroll 0% 0%; box-shadow: rgb(0, 97, 146) 0px 0px 0px 2px;"
-        class="post_box-avatar">{{post.seller[0]}}</div>
-      <div class="name-header">{{post.seller}}</div>
-      {% endif %}
-      <div class="post_box-subtitle"> Posted at <i>{{readable_time(post.timestamp)}}</i></div>
+<div id="posts-container" class="space-y-6">
+    {% for post in posts %}
+    <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <div class="px-6 py-4">
+            <div class="flex items-center mb-4">
+                {% if post.get('seller') %}
+                <div class="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white text-xl font-bold mr-4">
+                    {{post.seller[0]}}
+                </div>
+                <div>
+                    <div class="font-bold text-xl mb-1">{{post.seller}}</div>
+                    <p class="text-gray-600 text-sm">Posted at <i>{{readable_time(post.timestamp)}}</i></p>
+                </div>
+                {% endif %}
+            </div>
+            <div class="space-y-2">
+                <p><span class="font-semibold">Node ID:</span> {{post.node_id}}</p>
+                <p><span class="font-semibold">Document Type:</span> {{post.document_type}}</p>
+                <p><span class="font-semibold">Document Number:</span> {{post.document_number}}</p>
+                <p><span class="font-semibold">GST Number:</span> {{post.gst_no}}</p>
+                <p><span class="font-semibold">Document Date:</span> {{post.document_date}}</p>
+                {% if post.get('buyer') %}
+                <p><span class="font-semibold">Buyer:</span> {{post.buyer}}</p>
+                {% endif %}
+                <p><span class="font-semibold">Index:</span> {{post.index}}</p>
+                <p><span class="font-semibold">Financial Year:</span> {{ post.financial_year }}</p>
+                <p><span class="font-semibold">Transactions:</span> {{post.transactions}}</p>
+                <p><span class="font-semibold">Timestamp:</span> {{post.timestamp}}</p>
+                <p><span class="font-semibold">Previous Hash:</span> <span class="text-xs break-all">{{post.previous_hash}}</span></p>
+                <p><span class="font-semibold">Current Hash:</span> <span class="text-xs break-all">{{post.current_hash}}</span></p>
+                <p><span class="font-semibold">Status:</span> 
+                    <span class="{% if post.status == 'Cancelled' %}text-red-600{% else %}text-green-600{% endif %} font-bold">
+                        {{post.status}}
+                    </span>
+                </p>
+                {% if post.status == 'Cancelled' %}
+                <p><span class="font-semibold">Cancellation Reason:</span> {{post.cancellation_reason}}</p>
+                {% endif %}
+            </div>
+        </div>
     </div>
-    <div>
-      <div class="post_box-body">
-        <p>Document Type: {{post.document_type}}</p>
-        <p>Document Number: {{post.document_number}}</p>
-        <p>GST Number: {{post.gst_no}}</p>
-        <p>Document Date: {{post.document_date}}</p>
-        {% if post.get('seller') %}
-        <p>Seller: {{post.seller}}</p>
-        {% endif %}
-        {% if post.get('buyer') %}
-        <p>Buyer: {{post.buyer}}</p>
-        {% endif %}
-        <p>Index: {{post.index}}</p>
-        <p>Financial Year: {{ post.financial_year }}</p>
-        <p>Transactions: {{post.transactions}}</p>
-        <p>Timestamp: {{post.timestamp}}</p>
-        <p>Previous Hash: {{post.previous_hash}}</p>
-        <p>Current Hash: {{post.current_hash}}</p>
-        <p>Status: {{post.status}}</p>
-        {% if post.status == 'Cancelled' %}
-        <p>Cancellation Reason: {{post.cancellation_reason}}</p>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  {% endfor %}
+    {% endfor %}
 </div>
 
-<style>
-  .post_box {
-    background: #fff;
-    padding: 12px 0px 0px 12px;
-    margin-top: 0px;
-    margin-bottom: 8px;
-    border-top: 1px solid #f0f0f0;
-  }
-  .post_box-header {
-    padding-bottom: 12px;
-  }
-  .post_box-avatar {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
-    font-size: 22px;
-    float: left;
-    margin-right: 16px;
-    border: 1px solid #fff;
-    box-shadow: 0px 0px 0px 2px #f00;
-  }
-  .post_box-avatar::after {
-    content: "";
-    display: block;
-  }
-  .post_box-name {
-    font-weight: bold;
-  }
-  .post_box-subtitle {
-    color: #777;
-  }
-  .post_box-body {
-    margin-top: 16px;
-    margin-bottom: 8px;
-  }
-</style>
-
 <script>
-  function pollForUpdates() {
-    fetch('/transactions')
-      .then(response => response.text())
-      .then(html => {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-        const newPostsContainer = tempDiv.querySelector('#posts-container');
-        if (newPostsContainer) {
-          document.getElementById('posts-container').innerHTML = newPostsContainer.innerHTML;
-        }
-      })
-      .catch(error => console.error('Error:', error));
-  }
+    function pollForUpdates() {
+        fetch('/transactions')
+            .then(response => response.text())
+            .then(html => {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = html;
+                const newPostsContainer = tempDiv.querySelector('#posts-container');
+                if (newPostsContainer) {
+                    document.getElementById('posts-container').innerHTML = newPostsContainer.innerHTML;
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
 
-  // Poll every 5 seconds
-  setInterval(pollForUpdates, 5000);
+    setInterval(pollForUpdates, 5000);
 </script>
 {% endblock %}

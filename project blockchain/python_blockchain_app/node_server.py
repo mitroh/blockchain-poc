@@ -10,7 +10,7 @@ import hashlib
 
 from flask import Flask, request, jsonify, Response
 import requests
-
+NODE_ID = os.environ.get('NODE_ID', '1')  
 
 class Block:
     def __init__(self, index, transactions, timestamp, previous_hash, nonce=0):
@@ -19,6 +19,7 @@ class Block:
         self.timestamp = timestamp
         self.previous_hash = previous_hash
         self.nonce = nonce
+        self.node_id = NODE_ID
         self.hash = self.compute_hash()
 
     def compute_hash(self):
@@ -113,6 +114,7 @@ class Blockchain:
         consensus()  # Ensure we have the most up-to-date chain
         self.update_unique_checker()  # Update the unique checker with all transactions in the chain
         transaction['status'] = 'Active'
+        transaction['node_id'] = NODE_ID  # Add the node_id to the transaction
         success, message = self.unique_checker.check_unique(transaction)
         if not success:
             return message, 400, None
@@ -276,6 +278,7 @@ def create_chain_from_dump(chain_dump):
                       block_data["previous_hash"],
                       block_data["nonce"])
         proof = block_data['hash']
+        block.node_id = block_data.get('node_id', NODE_ID)  # Add this line
         generated_blockchain.add_block(block, proof)
         # # Update UniqueChecker
         for tx in block_data["transactions"]:
@@ -294,6 +297,7 @@ def get_chain():
             'timestamp': block.timestamp,
             'previous_hash': block.previous_hash,
             'hash': block.hash,
+            'node_id': block.node_id,  # Add this line to include the node ID
             'nonce': block.nonce
         }
         for transaction in block_dict['transactions']:
@@ -429,7 +433,7 @@ def verify_and_add_block():
                   block_data["timestamp"],
                   block_data["previous_hash"],
                   block_data["nonce"])
-
+    block.node_id = block_data.get('node_id', NODE_ID)  # Add this line
     proof = block_data['hash']
     try:
         blockchain.add_block(block, proof)
